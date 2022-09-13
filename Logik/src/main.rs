@@ -2,6 +2,7 @@ use bytecodec::DecodeExt;
 use httpcodec::{HttpVersion, ReasonPhrase, Request, RequestDecoder, Response, StatusCode};
 use std::io::{Read, Write};
 use wasmedge_wasi_socket::{Shutdown, TcpListener, TcpStream};
+mod rest_api;
 
 fn handle_http(req: Request<String>) -> bytecodec::Result<Response<String>> {
 
@@ -12,11 +13,11 @@ fn handle_http(req: Request<String>) -> bytecodec::Result<Response<String>> {
     let http_method_temp: String = req.method().to_string();
     let http_method = &http_method_temp[..];
     match http_method {
-                "DELETE" => println!("DELETE"),
-                "POST" => println!("POST"),
-                "PATCH" => println!("PATCH"),
-                "GET" => println!("GET"),
-                "PUT" => println!("PUT"),
+                "DELETE" => rest_api::choose_method(http_method, "route"),
+                "POST" => rest_api::choose_method(http_method, "route"),
+                "PATCH" => rest_api::choose_method(http_method, "route"),
+                "GET" => rest_api::choose_method(http_method, "route"),
+                "PUT" => rest_api::choose_method(http_method, "route"),
                 &_ => println!("ERROR"),
             };
 
