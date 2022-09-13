@@ -6,14 +6,26 @@ use wasmedge_wasi_socket::{Shutdown, TcpListener, TcpStream};
 fn handle_http(req: Request<String>) -> bytecodec::Result<Response<String>> {
 
     // HTTP API Definition
+    // Check which HTTP Method is used
+
+    // Step 1: Check HTTP Method
+    let http_method_temp: String = req.method().to_string();
+    let http_method = &http_method_temp[..];
+    match http_method {
+                "DELETE" => println!("DELETE"),
+                "POST" => println!("POST"),
+                "PATCH" => println!("PATCH"),
+                "GET" => println!("GET"),
+                "PUT" => println!("PUT"),
+                &_ => println!("ERROR"),
+            };
 
     // Check which resource is requested
-
     Ok(Response::new(
         HttpVersion::V1_0,
         StatusCode::new(200)?,
         ReasonPhrase::new("")?,
-        format!("echo: {}", req.body()),
+        format!("echo: {}", req.method()),
     ))
 }
 
