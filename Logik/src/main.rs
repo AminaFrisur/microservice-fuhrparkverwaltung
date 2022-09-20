@@ -12,13 +12,17 @@ fn handle_http(req: Request<String>) -> bytecodec::Result<Response<String>> {
     // Step 1: Check HTTP Method
     let http_method_temp: String = req.method().to_string();
     let http_method = &http_method_temp[..];
+
+    let response: &str;
+
+    // Route the Request to the handler
     match http_method {
-                "DELETE" => rest_api::choose_method(http_method, "route"),
-                "POST" => rest_api::choose_method(http_method, "route"),
-                "PATCH" => rest_api::choose_method(http_method, "route"),
-                "GET" => rest_api::choose_method(http_method, "route"),
-                "PUT" => rest_api::choose_method(http_method, "route"),
-                &_ => println!("ERROR"),
+                "DELETE" => response = rest_api::choose_method_delete(http_method, req. request_target().as_str(), req.body()),
+                "POST" => response = rest_api::choose_method_post(http_method, req. request_target().as_str(), req.body()),
+                "PATCH" => response = rest_api::choose_method_patch(http_method, req. request_target().as_str(), req.body()),
+                "GET" => response = rest_api::choose_method_get(http_method, req. request_target().as_str(), req.body()),
+                "PUT" => response = rest_api::choose_method_put(http_method, req. request_target().as_str(), req.body()),
+                &_ => response = "Wrong HTTP Method",
             };
 
     // Check which resource is requested
@@ -26,7 +30,7 @@ fn handle_http(req: Request<String>) -> bytecodec::Result<Response<String>> {
         HttpVersion::V1_0,
         StatusCode::new(200)?,
         ReasonPhrase::new("")?,
-        format!("echo: {}", req.method()),
+        format!("echo: {}", response),
     ))
 }
 
