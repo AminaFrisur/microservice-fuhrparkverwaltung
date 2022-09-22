@@ -1,0 +1,12 @@
+[package]
+name = "microservice_fuhrparkverwaltung"
+version = "0.0.1"
+authors = ["thoeff2s"]
+edition = "2018"
+
+[[bin]]
+name = "restapi"
+path = "./src/main.rs"
+
+[dependencies]
+nickel = "*"

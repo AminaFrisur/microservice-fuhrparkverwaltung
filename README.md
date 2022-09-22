@@ -47,3 +47,13 @@ Stand 22.09:
 - Dieser Microservice wird nicht mehr als WASM Microservice umgesetzt
 - Dieser besteht nun aus einem Docker Container der eine MySQL Datenbank und eine eigene REST API enthält aus Rust
 - Aber ohne dies in WASM zu übersetzen
+
+WASM Rust erstellen:
+- wasmedge ./target/wasm32-wasi/release/microservice_fuhrparkverwaltung.wasm
+- cargo build --target wasm32-wasi --release
+
+https://serverfault.com/questions/1084915/still-confused-why-docker-works-when-you-make-a-process-listen-to-0-0-0-0-but-no
+
+
+
+

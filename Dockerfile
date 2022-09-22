@@ -17,5 +17,16 @@ COPY ./Datenbank/sqlData/data.sql /docker-entrypoint-initdb.d/
 
 
 
-# FROM rust:1.31
-# WORKDIR ./Datenbank/src
+FROM rust:latest
+WORKDIR ./Datenbank/restapi
+
+COPY Datenbank/restapi/Cargo.toml .
+RUN mkdir src/
+COPY Datenbank/restapi/src/ ./src
+RUN cargo install --path .
+
+EXPOSE 3030
+
+CMD ["restapi"]
+
+
