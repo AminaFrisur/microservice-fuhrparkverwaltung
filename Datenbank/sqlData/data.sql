@@ -1,3 +1,7 @@
+CREATE USER 'root'@'%' IDENTIFIED BY 'test';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+CREATE DATABASE IF NOT EXISTS fuhrpark;
+USE fuhrpark;
 DROP TABLE IF EXISTS `fahrzeuge`;
 CREATE TABLE `fahrzeuge` (
   `model` varchar(255) NOT NULL,

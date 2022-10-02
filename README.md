@@ -55,5 +55,16 @@ WASM Rust erstellen:
 https://serverfault.com/questions/1084915/still-confused-why-docker-works-when-you-make-a-process-listen-to-0-0-0-0-but-no
 
 
+Stand 2.10.2022:
+- Dadurch das Docker eine Prozessorientierte Virtualisierungstechnologie ist, muss bzw. sollte für jeden Prozess ein eigener Container erstellt werden
+- Deshalb jeweils ein Container für die REST API die auf die Datenbank zugreift
+- ein Container für die mysql Datenbank an sich
+
+Einzelnes erstellen des Datenbank Containers:
+- docker build -t database_fuhrpark_ms .
+- docker run -d --name database_fuhrpark_ms_v4 --env MYSQL_ROOT_PASSWORD= database_fuhrpark_ms
+
+Einzelnes erstellen der Rest API:
+
 
 
