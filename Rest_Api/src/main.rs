@@ -1,16 +1,15 @@
 
 #[macro_use] extern crate nickel;
-use mysql::*;
-use mysql::prelude::*;
+use postgres::{Client, NoTls};
 
 use nickel::{Nickel, JsonBody, HttpRouter, Request, Response, MiddlewareResult, MediaType};
 
-fn main() -> std::result::Result<(), Error>  {
+fn main()  {
     let mut server = Nickel::new();
     let mut router = Nickel::router();
 
-    let url = "mysql://root:test@localhost:3306/fuhrpark";
-    let pool = Pool::new(url)?;
+    println!("host=database port=5432 user=postgres password=test");
+    let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
 
 
     router.get("/getVehicle/:id", middleware! { |request, response|
@@ -40,8 +39,6 @@ fn main() -> std::result::Result<(), Error>  {
     server.utilize(router);
 
     server.listen("0.0.0.0:3030").unwrap();
-
-    Ok(())
 }
 
 struct Fahrzeug {

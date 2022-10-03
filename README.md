@@ -67,4 +67,12 @@ Einzelnes erstellen des Datenbank Containers:
 Einzelnes erstellen der Rest API:
 
 
+Stand 4.10.2022:
+docker run -d -p 3030:3030 --network test  rest_api_fuhrpark_ms
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=test --network test --network-alias database  datenbank_postgres_fuhrpark_ms
+
+Mit dem Network Alias funktioniert es 
+
+
+
 
