@@ -1,5 +1,3 @@
-CREATE DATABASE fuhrpark;
-\c fuhrpark;
 CREATE TABLE IF NOT EXISTS fahrzeuge (
   model varchar(255) NOT NULL,
   id SERIAL PRIMARY KEY NOT NULL ,
