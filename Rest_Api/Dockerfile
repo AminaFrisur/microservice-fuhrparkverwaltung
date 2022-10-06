@@ -4,6 +4,9 @@ LABEL description="Rest Api of Microservice Fuhrpark"
 # Set working directory
 WORKDIR ./rest-api/
 
+# set to rust nightly
+RUN rustup default nightly
+
 # create Dummy for caching dependencies in rust
 RUN mkdir ./src && echo 'fn main() { println!("Dummy!"); }' > ./src/main.rs
 COPY Cargo.toml .
