@@ -4,6 +4,12 @@ use postgres::{Client, NoTls};
 use nickel::{Nickel, JsonBody, HttpRouter, Request, Response, MiddlewareResult, MediaType};
 use nickel::status::StatusCode;
 use std::str::FromStr;
+use itertools::Itertools;
+
+// TODO: Fuege Standort noch hinzu
+// Buchungsservices orientieren sich nach bestimmten Standort -> deshalb dies hinzufügen
+
+// TODO: Authentifizierung innerhalb der MS Architektur noch festlegen
 
 fn create_json(query_result: Vec<postgres::row::Row>) -> String {
 
@@ -19,8 +25,10 @@ fn create_json(query_result: Vec<postgres::row::Row>) -> String {
         vec_string.push(json_string);
     }
 
-    let s: String = vec_string.into_iter().collect();
-    return s;
+
+    let s: String = vec_string.iter().cloned().intersperse(format!(", ")).collect();
+    let result: String = format!("{{'result':{{ {} }}", s);
+    return result;
 }
 
 fn main()  {
@@ -68,9 +76,27 @@ fn main()  {
 
     });
 
-    router.get("/getVehicles", middleware! { |request, response|
+    router.get("/getVehicles", middleware! { |request, mut response|
 
-        format!("Hello from GET /users/new")
+        let mut client = match Client::connect("host=database port=5432 user=postgres password=test", NoTls) {
+            Ok(conn) => conn,
+            Err(e) => {
+                response.set(StatusCode::InternalServerError);
+                return response.send(format!("{}", e));
+            }
+        };
+
+        let query_result = match client.query("SELECT id, marke, model, leistung FROM fahrzeuge",  &[]) {
+            Ok(res) => res,
+            Err(e) => {
+                response.set(StatusCode::InternalServerError);
+                return response.send(format!("{}", e));
+            }
+        };
+
+        response.set(MediaType::Json);
+
+        return response.send(create_json(query_result));
 
     });
 

@@ -11,3 +11,4 @@ path = "./src/main.rs"
 [dependencies]
 nickel = "*"
 postgres = "0.19.4"
+itertools = "0.10.5"
