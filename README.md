@@ -73,6 +73,14 @@ docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=test --network test --network-al
 
 Mit dem Network Alias funktioniert es 
 
+Stand 6.10.2022:
+- Möglichkeiten der Fehlerbehandlung:
+- unwrap: ruft bei Fehler direkt panic auf -> Programm wird direkt gestoppt
+- .unwrap_or -> Wenn Fehler dann setzte einen Default Wert
+- an die caller Funktion zurückgeben: -> Result<String, Error> als Beispiel
+- verwenden von match operator: match test() { Ok(Wert) => mache das , Err(e) => mache das
+- ? Operator: dieser ist ähnlich zu unwrap, es leitet aber den Fehler an die Caller Funktion weiter statt direkt panic! aufzurufen
+
 
 
 

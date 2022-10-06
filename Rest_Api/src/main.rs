@@ -1,46 +1,76 @@
 
 #[macro_use] extern crate nickel;
 use postgres::{Client, NoTls};
-
 use nickel::{Nickel, JsonBody, HttpRouter, Request, Response, MiddlewareResult, MediaType};
+use nickel::status::StatusCode;
+use std::str::FromStr;
+
+fn create_json(query_result: Vec<postgres::row::Row>) -> String {
+
+    let mut vec_string : Vec<String> = Vec::new();
+
+    for row in query_result {
+        let id: i32 = row.get(0);
+        let marke: &str = row.get(1);
+        let model: &str = row.get(2);
+        let leistung: i32 = row.get(3);
+
+        let json_string = format!("{{'id':'{}', 'model':'{}', 'marke': '{}', 'leistung': '{}'}}", id, model, marke, leistung);
+        vec_string.push(json_string);
+    }
+
+    let s: String = vec_string.into_iter().collect();
+    return s;
+}
 
 fn main()  {
     let mut server = Nickel::new();
     let mut router = Nickel::router();
 
-    println!("host=database port=5432 user=postgres password=test");
-    // TODO: Kein Unwrap verwenden -> Hier muss eine Fehlerbehandlung durchgeführt werden
-    // Möglichkeiten der Fehlerbehandlung:
-    // unwrap: ruft bei Fehler direkt panic auf -> Programm wird direkt gestoppt
-    // .unwrap_or -> Wenn Fehler dann setzte einen Default Wert
-    // an die caller Funktion zurückgeben: -> Result<String, Error> als Beispiel
-    // verwenden von match operator: match test() { Ok(Wert) => mache das , Err(e) => mache das
-    // ? Operator: dieser ist ähnlich zu unwrap, es leitet aber den Fehler an die Caller Funktion weiter statt direkt panic! aufzurufen
+    router.get("/getVehicle/:id", middleware! { |request, mut response|
 
+        let id : i32;
 
-    router.get("/getVehicle/:id", middleware! { |request, response|
-
-        let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
-        let queryResult = client.query("SELECT id, marke, model, leistung FROM fahrzeuge", &[]);
-
-        let result = match queryResult {
-            Ok(res) => res,
-            Err(err) => Vec::new(),
-        };
-
-        if result.len() == 0 {
-            println!("Select Statement not working");
+        // TODO: it is not necessary
+        // if id is missing -> route not found !
+        if request.param("id").is_none() {
+            return response.send(format!("parameter id is missing"));
         } else {
-            println!("Great Success!")
+            id = match FromStr::from_str(request.param("id").unwrap()) {
+                Ok(res) => res,
+                Err(e) => {
+                     response.set(StatusCode::InternalServerError);
+                     return response.send("ERROR: Parameter id must be an integer!");
+                }
+
+            }
         }
 
-        format!("BEEP");
+        let mut client = match Client::connect("host=database port=5432 user=postgres password=test", NoTls) {
+            Ok(conn) => conn,
+            Err(e) => {
+                response.set(StatusCode::InternalServerError);
+                return response.send(format!("{}", e));
+            }
+        };
+
+        let query_result = match client.query("SELECT id, marke, model, leistung FROM fahrzeuge WHERE id=$1",  &[&id]) {
+            Ok(res) => res,
+            Err(e) => {
+                response.set(StatusCode::InternalServerError);
+                return response.send(format!("{}", e));
+            }
+        };
+
+        response.set(MediaType::Json);
+
+        return response.send(create_json(query_result));
 
     });
 
     router.get("/getVehicles", middleware! { |request, response|
 
-        format!("Hello from POST /users/new")
+        format!("Hello from GET /users/new")
 
     });
 
@@ -61,9 +91,3 @@ fn main()  {
     server.listen("0.0.0.0:3030").unwrap();
 }
 
-struct Fahrzeug {
-    model: String,
-    marke: String,
-    id: i32,
-    leistung: String
-}
