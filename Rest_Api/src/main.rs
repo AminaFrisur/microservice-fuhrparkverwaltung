@@ -7,14 +7,10 @@ use rocket_contrib::json::Json;
 use serde::{Serialize, Deserialize};
 
 // TODO: Implement Error Handling
-
-// TODO: Fuege Standort noch hinzu -> Buchungsservices orientieren sich nach bestimmten Standort -> deshalb dies hinzufügen
-
 // TODO: Authentifizierung innerhalb der MS Architektur noch festlegen
-
 // TODO: Rust nightly -> Wirklich empfehlenswert fuer production? -> gibt es auch eine Alternative um rocket zu kompelieren ?
 
-// TODO: Enscheiden ob Fahrzeug wirklich gelöscht werden soll oder doch lieber einfach auf deleted = 1 gesetzt -> da problem später bei Rechnungen
+// NOTE: i16 deshalb verwendet stat u16, da SQL Trait nicht mit u16 arbeitet
 
 fn create_fahrzeug_list(query_result: Vec<postgres::row::Row>) -> Vec<Fahrzeug> {
 
@@ -27,6 +23,7 @@ fn create_fahrzeug_list(query_result: Vec<postgres::row::Row>) -> Vec<Fahrzeug> 
             marke: row.get(1),
             model: row.get(2),
             leistung: row.get(3),
+            plz: row.get(4),
         };
         vec_fahrzeuge.push(fahrzeug);
     }
@@ -35,20 +32,20 @@ fn create_fahrzeug_list(query_result: Vec<postgres::row::Row>) -> Vec<Fahrzeug> 
 
 
 
-#[get("/getVehicle/<id>")]
-fn get_vehicle(id: i32) -> Json<Vec<Fahrzeug>> {
+#[get("/getVehicle/<plz>/<id>")]
+fn get_vehicle(id: i32, plz: i32) -> Json<Vec<Fahrzeug>> {
 
     let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
-    let query_result = client.query("SELECT id, marke, model, leistung FROM fahrzeuge WHERE id=$1",  &[&id]).unwrap();
+    let query_result = client.query("SELECT id, marke, model, leistung, plz FROM fahrzeuge WHERE id=$1 AND plz=$2 AND active=TRUE",  &[&id, &plz]).unwrap();
     return Json(create_fahrzeug_list(query_result));
 
 }
 
-#[get("/getVehicles")]
-fn get_vehicles() -> Json<Vec<Fahrzeug>> {
+#[get("/getVehicles/<plz>")]
+fn get_vehicles(plz: i32) -> Json<Vec<Fahrzeug>> {
 
     let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
-    let query_result = client.query("SELECT id, marke, model, leistung FROM fahrzeuge",  &[]).unwrap();
+    let query_result = client.query("SELECT id, marke, model, leistung, plz FROM fahrzeuge WHERE plz=$1 AND active=TRUE",  &[&plz]).unwrap();
     return Json(create_fahrzeug_list(query_result));
 
 }
@@ -60,7 +57,8 @@ fn update_vehicle(fahrzeug_json: Json<Fahrzeug>) -> String {
 
     let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
 
-    client.execute("UPDATE fahrzeuge SET marke = $1, model = $2, leistung = $3 WHERE id = $4", &[&fahrzeug.marke, &fahrzeug.model, &fahrzeug.leistung, &fahrzeug.id]).unwrap();
+    client.execute("UPDATE fahrzeuge SET marke = $1, model = $2, leistung = $3 , plz = $4 WHERE id = $5",
+                   &[&fahrzeug.marke, &fahrzeug.model, &fahrzeug.leistung, &fahrzeug.plz ,&fahrzeug.id]).unwrap();
 
     return format!("Updated successfully vehicle with id: {}", fahrzeug.id);
 }
@@ -72,26 +70,28 @@ fn add_vehicle(fahrzeug_json: Json<Fahrzeug>) -> Json<Vec<Fahrzeug>> {
 
     let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
 
-    client.execute("INSERT INTO fahrzeuge(marke, model, leistung) VALUES ($1, $2, $3)", &[&fahrzeug.marke, &fahrzeug.model, &fahrzeug.leistung]).unwrap();
+    client.execute("INSERT INTO fahrzeuge(marke, model, leistung, plz, active) VALUES ($1, $2, $3, $4, TRUE)",
+                   &[&fahrzeug.marke, &fahrzeug.model, &fahrzeug.leistung, &fahrzeug.plz]).unwrap();
 
-    let query_result = client.query("SELECT id, marke, model, leistung FROM fahrzeuge ORDER BY id DESC LIMIT 1",  &[]).unwrap();
+    let query_result = client.query("SELECT id, marke, model, leistung, plz FROM fahrzeuge WHERE plz = $1 ORDER BY id DESC LIMIT 1",
+                                    &[&fahrzeug.plz]).unwrap();
 
     return Json(create_fahrzeug_list(query_result));
 }
 
-#[delete("/deleteVehicle/<id>")]
-fn delete_vehicle(id: i32) -> Json<Vec<Fahrzeug>> {
+#[post("/inactiveVehicle/<id>")]
+fn inactive_vehicle(id: i32) -> Json<Vec<Fahrzeug>> {
 
     let mut client = Client::connect("host=database port=5432 user=postgres password=test", NoTls).unwrap();
-    let query_result = client.query("SELECT id, marke, model, leistung FROM fahrzeuge WHERE id=$1",  &[&id]).unwrap();
+    let query_result = client.query("SELECT id, marke, model, leistung, plz FROM fahrzeuge WHERE id=$1",  &[&id]).unwrap();
 
-    client.execute("DELETE FROM fahrzeuge WHERE id = $1", &[&id]).unwrap();
+    client.execute("UPDATE fahrzeuge SET active = FALSE WHERE id = $1", &[&id]).unwrap();
 
     return Json(create_fahrzeug_list(query_result));
 }
 
 fn main()  {
-    rocket::ignite().mount("/", routes![get_vehicle, get_vehicles, update_vehicle, add_vehicle, delete_vehicle]).launch();
+    rocket::ignite().mount("/", routes![get_vehicle, get_vehicles, update_vehicle, add_vehicle, inactive_vehicle]).launch();
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -100,4 +100,5 @@ struct Fahrzeug {
     marke: String,
     model: String,
     leistung: i32,
+    plz: i32
 }
