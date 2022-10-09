@@ -1,6 +1,7 @@
 
 networks:
   main:
+  fuhrpark:
 
 services:
   rest_api:
@@ -9,13 +10,14 @@ services:
       - "8000:8000"
     networks:
       - main
+      - fuhrpark
 
   database:
     image: datenbank_postgres_fuhrpark_ms
     ports:
       - "5432:5432"
     networks:
-      - main
+      - fuhrpark
     environment:
       POSTGRES_PASSWORD: test
       network-alias: database
