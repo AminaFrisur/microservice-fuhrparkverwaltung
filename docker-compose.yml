@@ -1,23 +1,17 @@
 
 networks:
   main:
-  fuhrpark:
 
 services:
-  rest_api:
-    image: rest_api_fuhrpark_ms
-    ports:
-      - "8000:8000"
+  database-mysql-fuhrpark1:
+    container_name: database-mysql-fuhrpark1
+    command: --default-authentication-plugin=mysql_native_password
+    build: ./datenbank
+    environment:
+      MYSQL_ROOT_PASSWORD: "test"
     networks:
       - main
-      - fuhrpark
-
-  database:
-    image: datenbank_postgres_fuhrpark_ms
+    expose:
+      - 3000
     ports:
-      - "5432:5432"
-    networks:
-      - fuhrpark
-    environment:
-      POSTGRES_PASSWORD: test
-      network-alias: database
+      - 3000:3306
