@@ -8,6 +8,8 @@ use std::result::Result;
 use serde::{Deserialize, Serialize};
 extern crate regex;
 use regex::Regex;
+mod authclient;
+use authclient::make_auth_request;
 
 fn get_url() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
@@ -66,6 +68,19 @@ pub fn regex_route(re: Regex, route: &str) -> String {
 
 async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
+    let mut login_name;
+    let mut auth_token;
+
+    // get Header Information for login_name and auth_token
+    for (key, value) in req.headers().iter() {
+        if key == "login_name" {
+            login_name = value;
+        }
+        if key == "auth_token" {
+            auth_token = value;
+        }
+    }
+
     // Definiere hier zusätlich welche Routen erlaubt sind
     // Wichtig um auch zu checken ob Parameter in der URL dabei sind
     let re = Regex::new(r"/getVehicle/\d+|/echo|/getVehicles|/updateVehicle|/addVehicle|/inactiveVehicle/\d+")?;
@@ -85,6 +100,9 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
         (&Method::OPTIONS, "/inactiveVehicle") => Ok(response_build(&String::from(""))),
 
         (&Method::GET, "/getVehicle/") => {
+
+            make_auth_request("admin".to_string(), "ghierughiure".to_string()).await.unwrap();
+
             // get Params from url
             // nutze dafür das Ergebnis aus dem Regulären Ausdruck
             let id: String = regex_route.chars().filter(|c| c.is_digit(10)).collect();
@@ -222,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8002));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
         async move {
