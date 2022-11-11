@@ -5,7 +5,6 @@ pub use mysql_async::*;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::result::Result;
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 extern crate regex;
 use regex::Regex;
@@ -59,47 +58,41 @@ impl Fahrzeug {
 pub fn regex_route(re: Regex, route: &str) -> String {
     if re.is_match(route) {
         let cap = re.captures(route).unwrap();
-        return (&cap[1]).to_string();
+        return (&cap[0]).to_string();
     } else {
-        return "/".to_string();
+        return "/error".to_string();
     }
 }
-
-
 
 async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     // Definiere hier zusätlich welche Routen erlaubt sind
     // Wichtig um auch zu checken ob Parameter in der URL dabei sind
-    let re = Regex::new(r"(/getVehicle)/\d+|/getVehicles|/updateVehicle|/addVehicle|/inactiveVehicle").unwrap();
-    let filtered_route = regex_route(re, req.uri().path());
-    println!("{}", req.uri().path());
-    println!("{}", filtered_route);
+    let re = Regex::new(r"/getVehicle/\d+|/echo|/getVehicles|/updateVehicle|/addVehicle|/inactiveVehicle/\d+")?;
+    let regex_route = regex_route(re, req.uri().path());
+    let filtered_route: String = regex_route.chars().filter(|c| !c.is_digit(10)).collect();
 
     match (req.method(),  filtered_route.as_str()) {
-        (&Method::GET, "/") => Ok(Response::new(Body::from(
-            "The valid endpoints are /get_vehicle /get_vehicles /update_vehicle /add_vehicle /inactive_vehicle",
-        ))),
-
         // Prüfe ob Service Verfügbar ist
         // Könnte ich theoretisch für das Monitioring nutzen
-        (&Method::POST, "/echo") => Ok(Response::new(req.into_body())),
+        (&Method::GET, "/echo") => Ok(Response::new(req.into_body())),
 
         // CORS OPTIONS
-        (&Method::OPTIONS, "/getVehicle") => Ok(response_build(&String::from(""))),
+        (&Method::OPTIONS, "/getVehicle/") => Ok(response_build(&String::from(""))),
         (&Method::OPTIONS, "/getVehicles") => Ok(response_build(&String::from(""))),
         (&Method::OPTIONS, "/updateVehicle") => Ok(response_build(&String::from(""))),
         (&Method::OPTIONS, "/addVehicle") => Ok(response_build(&String::from(""))),
         (&Method::OPTIONS, "/inactiveVehicle") => Ok(response_build(&String::from(""))),
 
-        (&Method::GET, "/getVehicle") => {
-            println!("REST API get_vehicle: START CALL");
-
+        (&Method::GET, "/getVehicle/") => {
+            // get Params from url
+            // nutze dafür das Ergebnis aus dem Regulären Ausdruck
+            let id: String = regex_route.chars().filter(|c| c.is_digit(10)).collect();
+            println!("REST API getVehicle: START CALL");
             let mut conn = pool.get_conn().await?;
-
-            let id = 1;
+            println!("Es wird Fahzreug mit id: {} abgefragt:", id);
+            let id: i32 = id.parse()?;
             let statement = format!("SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE id={} AND active=TRUE", id);
-
             let fahrzeug = statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| {
                     Fahrzeug::new(
                         id,
@@ -110,21 +103,102 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
                         longitude
                     )
                 },
-                ).await.unwrap();
+                ).await?;
             println!("REST API: Ergebnis ist: {} ", serde_json::to_string(&fahrzeug)?.as_str());
 
             drop(conn);
             Ok(response_build(serde_json::to_string(&fahrzeug)?.as_str()))
         }
 
+        (&Method::GET, "/getVehicles") => {
+            println!("REST API getVehicle: START CALL");
+            let mut conn = pool.get_conn().await?;
+            let statement = "SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE active=TRUE";
+            let fahrzeug = statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| {
+                Fahrzeug::new(
+                    id,
+                    marke,
+                    model,
+                    leistung,
+                    latitude,
+                    longitude
+                )
+            },
+            ).await?;
+            println!("REST API: Ergebnis ist: {} ", serde_json::to_string(&fahrzeug)?.as_str());
+
+            drop(conn);
+            Ok(response_build(serde_json::to_string(&fahrzeug)?.as_str()))
+        }
+
+        (&Method::POST, "/addVehicle") => {
+            println!("REST API addVehicle: START CALL");
+            let mut conn = pool.get_conn().await?;
+
+            let byte_stream = hyper::body::to_bytes(req).await?;
+            let fahrzeug: Fahrzeug = serde_json::from_slice(&byte_stream)?;
+
+            "INSERT INTO fahrzeuge (marke, model, leistung, latitude, longitude) VALUES (:marke, :model, :leistung, latitude, longitude)"
+                .with(params! {
+                    "marke" => fahrzeug.marke,
+                    "model" => fahrzeug.model,
+                    "leistung" => fahrzeug.leistung,
+                    "latitude" => fahrzeug.latitude,
+                    "longitude" => fahrzeug.longitude
+
+                })
+                .ignore(&mut conn)
+                .await?;
+
+            drop(conn);
+            Ok(response_build("Fahrzeug wurde erfolgreich hinzugefügt"))
+        }
+
+        (&Method::POST, "/updateVehicle") => {
+            let mut conn = pool.get_conn().await?;
+            println!("REST API updateVehicle: START CALL");
+            let byte_stream = hyper::body::to_bytes(req).await?;
+            let fahrzeug: Fahrzeug = serde_json::from_slice(&byte_stream)?;
+
+            "UPDATE fahrzeuge SET marke=:marke, model=:model, leistung=:leistung, latitude=:latitude, longitude=:longitude WHERE id=:id"
+                .with(params! {
+                    "id" => fahrzeug.id,
+                    "marke" => fahrzeug.marke,
+                    "model" => fahrzeug.model,
+                    "leistung" => fahrzeug.leistung,
+                    "latitude" => fahrzeug.latitude,
+                    "longitude" => fahrzeug.longitude,
+                })
+                .ignore(&mut conn)
+                .await?;
+
+            drop(conn);
+            Ok(response_build("Fahrzeug wurde erfolgreich aktualisiert"))
+        }
+
+        (&Method::POST, "/inactiveVehicle/") => {
+            let id: String = regex_route.chars().filter(|c| c.is_digit(10)).collect();
+            let mut conn = pool.get_conn().await?;
+            println!("REST API inactiveVehicle: START CALL");
+
+            "UPDATE fahrzeuge SET active=FALSE WHERE id=:id"
+                .with(params! {
+                    "id" => id
+                })
+                .ignore(&mut conn)
+                .await?;
+
+            drop(conn);
+            Ok(response_build("Fahrzeug wurde auf inaktiv gesetzt"))
+        }
+
+
         _ => {
+            println!("REST API: ROUTE NOT FOUND");
             let mut not_found = Response::default();
             *not_found.status_mut() = StatusCode::NOT_FOUND;
             Ok(not_found)
         }
-
-
-
     }
 }
 
@@ -148,7 +222,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
         async move {
