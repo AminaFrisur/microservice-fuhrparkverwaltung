@@ -68,16 +68,22 @@ pub fn regex_route(re: Regex, route: &str) -> String {
 
 async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
-    let mut login_name;
-    let mut auth_token;
+    let mut login_name ="";
+    let mut auth_token =" ";
 
     // get Header Information for login_name and auth_token
     for (key, value) in req.headers().iter() {
         if key == "login_name" {
-            login_name = value;
+            login_name = value.to_str()?;
+            // login_name = &value;
+            println!("REST API login_name found {:?}", login_name);
+
         }
         if key == "auth_token" {
-            auth_token = value;
+            auth_token = value.to_str()?;
+            // auth_token = &value;
+            println!("REST API auth_token found {:?}", auth_token);
+
         }
     }
 
@@ -101,7 +107,7 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
 
         (&Method::GET, "/getVehicle/") => {
 
-            make_auth_request("admin".to_string(), "ghierughiure".to_string()).await.unwrap();
+            make_auth_request(login_name.to_string(), auth_token.to_string()).await.unwrap();
 
             // get Params from url
             // nutze dafür das Ergebnis aus dem Regulären Ausdruck
