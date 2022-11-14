@@ -13,15 +13,14 @@ pub async fn make_auth_request(login_name: String, auth_token: String) -> Result
      const BODY: &[u8; 2] = b"{}";
     let res = request::post(format!("http://{}", addr_with_params), BODY, &mut writer).unwrap();
 
-    println!("POST");
     if res.status_code().is_success() {
-        Err(anyhow!("Request failed: {}", res.status_code()))
-
-    } else {
         println!("Status: {} {}", res.status_code(), res.reason());
         println!("Headers {}", res.headers());
         println!("{}", String::from_utf8_lossy(&writer));
         Ok("Authentification passed".to_string())
+
+    } else {
+        return Err(anyhow!("Request failed: {}", res.status_code()));
     }
 
 

@@ -98,36 +98,32 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
         // Könnte ich theoretisch für das Monitioring nutzen
         (&Method::GET, "/echo") => Ok(Response::new(req.into_body())),
 
-        // CORS OPTIONS
-        (&Method::OPTIONS, "/getVehicle/") => Ok(response_build(&String::from(""))),
-        (&Method::OPTIONS, "/getVehicles") => Ok(response_build(&String::from(""))),
-        (&Method::OPTIONS, "/updateVehicle") => Ok(response_build(&String::from(""))),
-        (&Method::OPTIONS, "/addVehicle") => Ok(response_build(&String::from(""))),
-        (&Method::OPTIONS, "/inactiveVehicle") => Ok(response_build(&String::from(""))),
-
         (&Method::GET, "/getVehicle/") => {
 
-            make_auth_request(login_name.to_string(), auth_token.to_string()).await.unwrap();
+            match make_auth_request(login_name.to_string(), auth_token.to_string()).await {
+                Ok(message) => println!("Rest API: {}", message),
+                Err(_) => return Ok(response_build_error("Authentifizierung fehlgeschlagen", 401)),
+            }
 
             // get Params from url
             // nutze dafür das Ergebnis aus dem Regulären Ausdruck
             let id: String = regex_route.chars().filter(|c| c.is_digit(10)).collect();
             println!("REST API getVehicle: START CALL");
-            let mut conn = pool.get_conn().await?;
-            println!("Es wird Fahzreug mit id: {} abgefragt:", id);
+
+            let mut conn = match  pool.get_conn().await {
+              Ok(result) => result,
+              Err(_) => return Ok(response_build_error("Verbindung zur Datenbank ist fehlgeschlagen", 500))
+            };
+
             let id: i32 = id.parse()?;
+
             let statement = format!("SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE id={} AND active=TRUE", id);
-            let fahrzeug = statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| {
-                    Fahrzeug::new(
-                        id,
-                        marke,
-                        model,
-                        leistung,
-                        latitude,
-                        longitude
-                    )
-                },
-                ).await?;
+
+            let fahrzeug = match statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| { Fahrzeug::new(id, marke, model, leistung, latitude, longitude) }, ).await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+            };
+
             println!("REST API: Ergebnis ist: {} ", serde_json::to_string(&fahrzeug)?.as_str());
 
             drop(conn);
@@ -136,19 +132,17 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
 
         (&Method::GET, "/getVehicles") => {
             println!("REST API getVehicle: START CALL");
-            let mut conn = pool.get_conn().await?;
+
+            let mut conn = match  pool.get_conn().await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("Verbindung zur Datenbank ist fehlgeschlagen", 500))
+            };
+
             let statement = "SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE active=TRUE";
-            let fahrzeug = statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| {
-                Fahrzeug::new(
-                    id,
-                    marke,
-                    model,
-                    leistung,
-                    latitude,
-                    longitude
-                )
-            },
-            ).await?;
+            let fahrzeug = match statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| { Fahrzeug::new(id, marke, model, leistung, latitude, longitude) }, ).await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+            };
             println!("REST API: Ergebnis ist: {} ", serde_json::to_string(&fahrzeug)?.as_str());
 
             drop(conn);
@@ -156,13 +150,17 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
         }
 
         (&Method::POST, "/addVehicle") => {
+
             println!("REST API addVehicle: START CALL");
-            let mut conn = pool.get_conn().await?;
+            let mut conn = match  pool.get_conn().await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("Verbindung zur Datenbank ist fehlgeschlagen", 500))
+            };
 
             let byte_stream = hyper::body::to_bytes(req).await?;
             let fahrzeug: Fahrzeug = serde_json::from_slice(&byte_stream)?;
 
-            "INSERT INTO fahrzeuge (marke, model, leistung, latitude, longitude) VALUES (:marke, :model, :leistung, latitude, longitude)"
+            match "INSERT INTO fahrzeuge (marke, model, leistung, latitude, longitude) VALUES (:marke, :model, :leistung, latitude, longitude)"
                 .with(params! {
                     "marke" => fahrzeug.marke,
                     "model" => fahrzeug.model,
@@ -172,7 +170,10 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
 
                 })
                 .ignore(&mut conn)
-                .await?;
+                .await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!",500))
+            }
 
             drop(conn);
             Ok(response_build("Fahrzeug wurde erfolgreich hinzugefügt"))
@@ -184,7 +185,7 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
             let byte_stream = hyper::body::to_bytes(req).await?;
             let fahrzeug: Fahrzeug = serde_json::from_slice(&byte_stream)?;
 
-            "UPDATE fahrzeuge SET marke=:marke, model=:model, leistung=:leistung, latitude=:latitude, longitude=:longitude WHERE id=:id"
+            match "UPDATE fahrzeuge SET marke=:marke, model=:model, leistung=:leistung, latitude=:latitude, longitude=:longitude WHERE id=:id"
                 .with(params! {
                     "id" => fahrzeug.id,
                     "marke" => fahrzeug.marke,
@@ -194,7 +195,10 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
                     "longitude" => fahrzeug.longitude,
                 })
                 .ignore(&mut conn)
-                .await?;
+                .await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+            }
 
             drop(conn);
             Ok(response_build("Fahrzeug wurde erfolgreich aktualisiert"))
@@ -205,12 +209,15 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
             let mut conn = pool.get_conn().await?;
             println!("REST API inactiveVehicle: START CALL");
 
-            "UPDATE fahrzeuge SET active=FALSE WHERE id=:id"
+            match "UPDATE fahrzeuge SET active=FALSE WHERE id=:id"
                 .with(params! {
                     "id" => id
                 })
                 .ignore(&mut conn)
-                .await?;
+                .await {
+                Ok(result) => result,
+                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+            }
 
             drop(conn);
             Ok(response_build("Fahrzeug wurde auf inaktiv gesetzt"))
@@ -230,6 +237,16 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
 // CORS headers
 fn response_build(body: &str) -> Response<Body> {
     Response::builder()
+        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        .header("Access-Control-Allow-Headers", "api,Keep-Alive,User-Agent,Content-Type")
+        .body(Body::from(body.to_owned()))
+        .unwrap()
+}
+
+fn response_build_error(body: &str, status: u16) -> Response<Body> {
+    Response::builder()
+        .status(status)
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .header("Access-Control-Allow-Headers", "api,Keep-Alive,User-Agent,Content-Type")
