@@ -69,9 +69,9 @@ pub fn regex_route(re: Regex, route: &str) -> String {
 async fn handle_request_wrapper(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
     match handle_request(req, pool).await {
         Ok(result) => Ok(result),
-        Err(_) => {
-            println!("SOME ERROR HAPPEND");
-            Ok(response_build_error("Internal Error!", 500))
+        Err(err) => {
+            let error_message = format!("{:?}", err);
+            Ok(response_build_error(&error_message, 500))
 
         }
     }
