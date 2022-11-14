@@ -66,6 +66,17 @@ pub fn regex_route(re: Regex, route: &str) -> String {
     }
 }
 
+async fn handle_request_wrapper(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+    match handle_request(req, pool).await {
+        Ok(result) => Ok(result),
+        Err(_) => {
+            println!("SOME ERROR HAPPEND");
+            Ok(response_build_error("Internal Error!", 500))
+
+        }
+    }
+}
+
 async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     let mut login_name ="";
@@ -269,7 +280,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         async move {
             Ok::<_, Infallible>(service_fn(move |req| {
                 let pool = pool.clone();
-                handle_request(req, pool)
+                handle_request_wrapper(req, pool)
             }))
         }
     });
