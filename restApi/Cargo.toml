@@ -28,3 +28,4 @@ hyper_wasi = { version = "0.15", features = ["full"] }
 tokio_wasi = { version = "1", features = ["io-util", "fs", "net", "time", "rt", "macros"] }
 regex = "0.2"
 wasmedge_http_req = "0.9.0"
+chrono = "0.4.23"

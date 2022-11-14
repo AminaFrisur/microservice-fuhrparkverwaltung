@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 extern crate regex;
 use regex::Regex;
 mod authclient;
+mod circuitbreaker;
 use authclient::make_auth_request;
+use crate::circuitbreaker::CircuitBreaker;
 
 fn get_url() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
@@ -80,7 +82,7 @@ async fn handle_request_wrapper(req: Request<Body>, pool: Pool) -> Result<Respon
 async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     let mut login_name ="";
-    let mut auth_token =" ";
+    let mut auth_token ="";
 
     // get Header Information for login_name and auth_token
     for (key, value) in req.headers().iter() {
@@ -273,6 +275,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let constraints = PoolConstraints::new(5, 10).unwrap();
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
+
+    // crate circuitbreaker and cache
+    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, format!("rest-api-benutzerverwaltung1"), 8000);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8002));
     let make_svc = make_service_fn(|_| {

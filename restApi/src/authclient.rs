@@ -23,5 +23,4 @@ pub async fn make_auth_request(login_name: String, auth_token: String) -> Result
         return Err(anyhow!("Request failed: {}", res.status_code()));
     }
 
-
 }
