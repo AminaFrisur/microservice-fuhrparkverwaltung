@@ -8,11 +8,15 @@ use std::result::Result;
 use serde::{Deserialize, Serialize};
 extern crate regex;
 use regex::Regex;
-mod authclient;
 mod circuitbreaker;
-use authclient::make_auth_request;
+mod authclient;
 use crate::circuitbreaker::CircuitBreaker;
 
+// #[macro_use]
+// extern crate lazy_static;
+// lazy_static! {
+//    static ref CIRCUIT_BREAKER_BENUTZERVERWALTUNG: CircuitBreaker = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "rest-api-benutzerverwaltung1".to_string(), 8000);
+//}
 fn get_url() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
         let opts = Opts::from_url(&url).expect("DATABASE_URL invalid");
@@ -68,8 +72,8 @@ pub fn regex_route(re: Regex, route: &str) -> String {
     }
 }
 
-async fn handle_request_wrapper(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
-    match handle_request(req, pool).await {
+async fn handle_request_wrapper(circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+    match handle_request(circuit_breaker, req, pool).await {
         Ok(result) => Ok(result),
         Err(err) => {
             let error_message = format!("{:?}", err);
@@ -79,7 +83,7 @@ async fn handle_request_wrapper(req: Request<Body>, pool: Pool) -> Result<Respon
     }
 }
 
-async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+async fn handle_request(mut circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     let mut login_name ="";
     let mut auth_token ="";
@@ -112,10 +116,11 @@ async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>
         (&Method::GET, "/echo") => Ok(Response::new(req.into_body())),
 
         (&Method::GET, "/getVehicle/") => {
+            let addr_with_params = format!("/checkAuthUser?login_name={}&auth_token={}&isAdmin=true", login_name, auth_token);
 
-            match make_auth_request(login_name.to_string(), auth_token.to_string()).await {
+            match circuit_breaker.circuit_breaker_post_request(addr_with_params).await {
                 Ok(message) => println!("Rest API: {}", message),
-                Err(_) => return Ok(response_build_error("Authentifizierung fehlgeschlagen", 401)),
+                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
             }
 
             // get Params from url
@@ -276,16 +281,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
 
-    // crate circuitbreaker and cache
-    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, format!("rest-api-benutzerverwaltung1"), 8000);
-
+    // circuit Breaker:
+    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "0.0.0.0", 8000);
     let addr = SocketAddr::from(([0, 0, 0, 0], 8002));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
         async move {
             Ok::<_, Infallible>(service_fn(move |req| {
                 let pool = pool.clone();
-                handle_request_wrapper(req, pool)
+                handle_request_wrapper(circuit_breaker_benutzerverwaltung, req, pool)
             }))
         }
     });
