@@ -12,11 +12,6 @@ mod circuitbreaker;
 mod authclient;
 use crate::circuitbreaker::CircuitBreaker;
 
-// #[macro_use]
-// extern crate lazy_static;
-// lazy_static! {
-//    static ref CIRCUIT_BREAKER_BENUTZERVERWALTUNG: CircuitBreaker = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "rest-api-benutzerverwaltung1".to_string(), 8000);
-//}
 fn get_url() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
         let opts = Opts::from_url(&url).expect("DATABASE_URL invalid");
@@ -286,16 +281,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 8002));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
+        let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
+        // move converts any variables captured by reference or mutable reference to variables captured by value.
         async move {
             Ok::<_, Infallible>(service_fn(move |req| {
                 let pool = pool.clone();
+                let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
                 handle_request_wrapper(circuit_breaker_benutzerverwaltung, req, pool)
             }))
         }
     });
+    println!("REST API: Start Server");
     let server = Server::bind(&addr).serve(make_svc);
     if let Err(e) = server.await {
         eprintln!("server error: {}", e);
     }
     Ok(())
 }
+
+

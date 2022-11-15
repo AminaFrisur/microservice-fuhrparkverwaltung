@@ -9,7 +9,7 @@ pub async fn make_auth_request(addr_with_params: String) -> Result<(std::string:
     println!("AuthClient: Führe Request aus");
     const BODY: &[u8; 2] = b"{}";
     println!("{}", addr_with_params);
-    let res = request::post(format!("http://{}", addr_with_params), BODY, &mut writer).unwrap();
+    let res = request::post(format!("http://{}", addr_with_params), BODY, &mut writer)?;
 
     if res.status_code().is_success() {
         println!("Status: {} {}", res.status_code(), res.reason());

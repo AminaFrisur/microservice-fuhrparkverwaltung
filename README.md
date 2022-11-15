@@ -81,6 +81,9 @@ Stand 6.10.2022:
 - verwenden von match operator: match test() { Ok(Wert) => mache das , Err(e) => mache das
 - ? Operator: dieser ist ähnlich zu unwrap, es leitet aber den Fehler an die Caller Funktion weiter statt direkt panic! aufzurufen
 
+Stand 15.11.2022:
+- Anscheinend sieht es so aus als könnte mittlerweile WasmEdge auch Threading
+- https://stackoverflow.com/questions/52974081/shared-mutable-state-in-hyper
 
 
 
