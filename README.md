@@ -84,6 +84,10 @@ Stand 6.10.2022:
 Stand 15.11.2022:
 - Anscheinend sieht es so aus als könnte mittlerweile WasmEdge auch Threading
 - https://stackoverflow.com/questions/52974081/shared-mutable-state-in-hyper
+- https://dl.acm.org/doi/abs/10.1145/3510003.3510107
+- Mal efahren was passiert wenn referenz<'a> durch eine neue überschrieben wird -> bleibt diese dann im Speicher ? 
+- -> Yes, otherwise it'd be a memory leak, which would be a pretty terrible design decision. The memory is freed when the variable is reassigned:
+- Also wird direkt der Speicher freigemacht (anscheinend)
 
 
 

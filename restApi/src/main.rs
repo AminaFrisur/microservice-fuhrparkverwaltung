@@ -8,9 +8,11 @@ use std::result::Result;
 use serde::{Deserialize, Serialize};
 extern crate regex;
 use regex::Regex;
+mod cache;
 mod circuitbreaker;
 mod authclient;
 use crate::circuitbreaker::CircuitBreaker;
+use crate::cache::Cache;
 
 fn get_url() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
@@ -278,15 +280,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // circuit Breaker:
     let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "0.0.0.0", 8000);
+    let cache_benutzerverwaltung = Cache::new(10000, 10000);
     let addr = SocketAddr::from(([0, 0, 0, 0], 8002));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
         let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
+        let cache_benutzerverwaltung = cache_benutzerverwaltung.clone();
         // move converts any variables captured by reference or mutable reference to variables captured by value.
         async move {
             Ok::<_, Infallible>(service_fn(move |req| {
                 let pool = pool.clone();
                 let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
+                let cache_benutzerverwaltung = cache_benutzerverwaltung.clone();
                 handle_request_wrapper(circuit_breaker_benutzerverwaltung, req, pool)
             }))
         }
