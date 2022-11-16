@@ -10,7 +10,7 @@ extern crate regex;
 use regex::Regex;
 mod cache;
 mod circuitbreaker;
-mod authclient;
+mod auth;
 use crate::circuitbreaker::CircuitBreaker;
 use crate::cache::Cache;
 
@@ -80,7 +80,7 @@ async fn handle_request_wrapper(cache: Cache, circuit_breaker: CircuitBreaker<'_
     }
 }
 
-async fn handle_request(cache: Cache, mut circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     let mut login_name ="";
     let mut auth_token ="";
@@ -115,8 +115,8 @@ async fn handle_request(cache: Cache, mut circuit_breaker: CircuitBreaker<'_>, r
         (&Method::GET, "/getVehicle/") => {
             let addr_with_params = format!("/checkAuthUser?login_name={}&auth_token={}&isAdmin=true", login_name, auth_token);
 
-            match circuit_breaker.circuit_breaker_post_request(addr_with_params, login_name, auth_token, cache).await {
-                Ok(result) => println!("Rest API: {}", result),
+            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+                Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
                 Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
             }
 

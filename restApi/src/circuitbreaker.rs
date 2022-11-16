@@ -1,11 +1,7 @@
 use chrono::{DateTime, Utc};
 use anyhow::anyhow;
-#[path = "./authclient.rs"] mod authclient;
-use authclient::make_auth_request;
+#[path = "./client.rs"] mod client;
 use std::sync::{Arc, Mutex};
-#[path = "./cache.rs"] mod cache;
-use crate::cache::Cache;
-
 // Warum kein RwLock:  -> the trait `Clone` is not implemented for `std::sync::RwLock<u64>`
 // use std::sync::RwLock;
 
@@ -50,7 +46,7 @@ impl <'a> CircuitBreaker<'a>  {
         }
     }
 
-    pub async fn circuit_breaker_post_request(&mut self, addr_with_params: String, login_name: &str, auth_token: &str, cache: Cache) -> Result<std::string::String, anyhow::Error> {
+    pub async fn circuit_breaker_post_request(&mut self, addr_with_params: String) -> Result<(wasmedge_http_req::response::Response, String), anyhow::Error> {
 
         println!("REST API: AKTUELLER CIRCUIT BREAKER STATUS IST: {}", self.get_circuit_breaker_state());
 
@@ -94,17 +90,17 @@ impl <'a> CircuitBreaker<'a>  {
 
         let url = format!("{}:{}{}", self.hostname, self.port, addr_with_params);
 
-        match authclient::make_auth_request(url, cache, login_name, auth_token).await {
-            Ok((http_code, result)) => {
+        match client::make_post_request(url).await {
+
+            Ok((res, response_json_string)) => {
                 self.increment_success_count();
                 println!("Circuit Breaker: Request war erfolgreich. Success Count ist jetzt bei {}", self.get_success_count());
-                if http_code == "200" {
-                    return Ok(result)
+
+                if res.status_code().is_success() {
+                    return Ok((res, response_json_string))
                 } else {
-                    return Err(anyhow!("CircuitBreaker: Request failed, return code was {}", http_code))
-
+                    return Err(anyhow!("CircuitBreaker: Request failed, return code was {}", res.status_code()))
                 }
-
 
             },
             Err(err) => {
@@ -130,8 +126,6 @@ impl <'a> CircuitBreaker<'a>  {
 
     }
 
-
-
     // Mutex Variablen: Jeweils der Zugriff als auch das Schreiben wird mit Mutex Sperre belegt
     // Nach dem Block wird jeweils immer die Variable freigegeben
     // Deshalb auch hier die Read operationen in dem Block
@@ -156,6 +150,11 @@ impl <'a> CircuitBreaker<'a>  {
         println!("REST API: Request Count ist {}", *counter);
     }
 
+    fn set_circuit_breaker_state(&self, new_state: &'a str) {
+        let mut state = self.circuit_breaker_state.lock().unwrap();
+        *state = new_state;
+    }
+
     fn get_request_count(&self) -> i64 {
         let counter = self.request_count.lock().unwrap();
         return *counter;
@@ -166,7 +165,7 @@ impl <'a> CircuitBreaker<'a>  {
         return *counter;
     }
 
-    fn get_fail_count(&self) -> i64 {
+    fn get_fail_count(&self) -> i64{
         let counter = self.fail_count.lock().unwrap();
         return *counter;
     }
@@ -181,10 +180,7 @@ impl <'a> CircuitBreaker<'a>  {
         return *state;
     }
 
-    fn set_circuit_breaker_state(&self, new_state: &'a str){
-        let mut state = self.circuit_breaker_state.lock().unwrap();
-        *state = new_state;
-    }
+
 
 }
 

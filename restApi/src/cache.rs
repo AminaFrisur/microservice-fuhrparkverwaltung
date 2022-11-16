@@ -1,21 +1,19 @@
 use chrono::{DateTime, Utc};
 use anyhow::anyhow;
 use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct User {
     login_name: String,
     auth_token: String,
     auth_token_timestamp: String,
-    cache_timestamp: String,
-    is_admin: bool
+    cache_timestamp: String
 }
 
 impl User {
     pub fn new(login_name: &str, auth_token: &str, auth_token_timestamp: DateTime<Utc>, cache_timestamp: DateTime<Utc>) -> Self {
 
-        return Self {login_name: login_name.to_string(), auth_token: auth_token.to_string(), auth_token_timestamp: auth_token_timestamp.to_rfc3339(), cache_timestamp: cache_timestamp.to_rfc3339(), is_admin: false};
+        return Self {login_name: login_name.to_string(), auth_token: auth_token.to_string(), auth_token_timestamp: auth_token_timestamp.to_rfc3339(), cache_timestamp: cache_timestamp.to_rfc3339()};
     }
 
     pub fn print_login_name(&self) {
@@ -37,13 +35,12 @@ impl User {
 pub struct Cache {
     cached_user: Arc<std::sync::Mutex<Vec<User>>> ,
     max_size: i64,
-    cache_time: i64,
-    timestamp:  Arc<std::sync::Mutex<DateTime<Utc>>>,
+    cache_time: i64
 }
 impl Cache   {
     pub fn new(max_size: i64, cache_time: i64) -> Self {
 
-        return Self {cached_user: Arc::new(Mutex::new(Vec::new())), max_size, cache_time, timestamp: Arc::new(Mutex::new(Utc::now()))};
+        return Self {cached_user: Arc::new(Mutex::new(Vec::new())), max_size, cache_time};
     }
 
     fn clear_cache(& mut self) -> Result<(), anyhow::Error> {
@@ -71,7 +68,7 @@ impl Cache   {
 
                 let time_diff = current_timestamp.signed_duration_since(cached_user_timestamp).num_seconds();
 
-                println!("Cache: {}", time_diff - self.cache_time);
+                println!("Cache: Zeit Differenz zwsichen Aktueller Zeit und Cachetime beträgt {} Sekunden", time_diff - self.cache_time);
                 // Wenn für den Eintrag die Cache Time erreicht ist -> lösche die hälfte vom Part des Arrays was betrachtet wird
                 // Damit sind dann nicht alle alten Cache einträge gelöscht -> aber das clearen vom Cache sollte schnell gehen
                 if time_diff >= self.cache_time {
@@ -95,7 +92,7 @@ impl Cache   {
     }
 
     pub fn get_user_index(& mut self, login_name: &str) -> Result<usize, anyhow::Error> {
-        self.clear_cache();
+        self.clear_cache()?;
         let mut final_index: usize = 0;
         let mut user_found: bool = false;
         let mut cached_user = self.cached_user.lock().unwrap();
@@ -153,7 +150,9 @@ impl Cache   {
         if auth_token != cached_user[index].auth_token { println!("Cache: Token aus dem Header stimmt nicht mit dem Token aus dem cache überein"); return Ok(false)};
         let current_timestamp = Utc::now();
         let auth_token_timestamp =  DateTime::parse_from_rfc3339(&cached_user[index].auth_token_timestamp)?.with_timezone(&Utc);
+        println!("Cache: Auth Token Timestamp ist  {}", auth_token_timestamp);
         let time_diff = current_timestamp.signed_duration_since(auth_token_timestamp).num_hours();
+        println!("Cache: Differenz zwischen aktueller Zeit und Auth Token Timestamp beträgt: {} Stunden", time_diff);
         // Wenn token älter ist als 24 Stunden
         if time_diff > 24  {
             return Ok(false);
