@@ -69,8 +69,8 @@ pub fn regex_route(re: Regex, route: &str) -> String {
     }
 }
 
-async fn handle_request_wrapper(circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
-    match handle_request(circuit_breaker, req, pool).await {
+async fn handle_request_wrapper(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+    match handle_request(cache, circuit_breaker, req, pool).await {
         Ok(result) => Ok(result),
         Err(err) => {
             let error_message = format!("{:?}", err);
@@ -80,7 +80,7 @@ async fn handle_request_wrapper(circuit_breaker: CircuitBreaker<'_>, req: Reques
     }
 }
 
-async fn handle_request(mut circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+async fn handle_request(cache: Cache, mut circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     let mut login_name ="";
     let mut auth_token ="";
@@ -115,8 +115,8 @@ async fn handle_request(mut circuit_breaker: CircuitBreaker<'_>, req: Request<Bo
         (&Method::GET, "/getVehicle/") => {
             let addr_with_params = format!("/checkAuthUser?login_name={}&auth_token={}&isAdmin=true", login_name, auth_token);
 
-            match circuit_breaker.circuit_breaker_post_request(addr_with_params).await {
-                Ok(message) => println!("Rest API: {}", message),
+            match circuit_breaker.circuit_breaker_post_request(addr_with_params, login_name, auth_token, cache).await {
+                Ok(result) => println!("Rest API: {}", result),
                 Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
             }
 
@@ -292,7 +292,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 let pool = pool.clone();
                 let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
                 let cache_benutzerverwaltung = cache_benutzerverwaltung.clone();
-                handle_request_wrapper(circuit_breaker_benutzerverwaltung, req, pool)
+                handle_request_wrapper(cache_benutzerverwaltung, circuit_breaker_benutzerverwaltung, req, pool)
             }))
         }
     });

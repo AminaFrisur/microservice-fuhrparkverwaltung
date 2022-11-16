@@ -3,6 +3,8 @@ use anyhow::anyhow;
 #[path = "./authclient.rs"] mod authclient;
 use authclient::make_auth_request;
 use std::sync::{Arc, Mutex};
+#[path = "./cache.rs"] mod cache;
+use crate::cache::Cache;
 
 // Warum kein RwLock:  -> the trait `Clone` is not implemented for `std::sync::RwLock<u64>`
 // use std::sync::RwLock;
@@ -48,7 +50,7 @@ impl <'a> CircuitBreaker<'a>  {
         }
     }
 
-    pub async fn circuit_breaker_post_request(&mut self, addr_with_params: String) -> Result<std::string::String, anyhow::Error> {
+    pub async fn circuit_breaker_post_request(&mut self, addr_with_params: String, login_name: &str, auth_token: &str, cache: Cache) -> Result<std::string::String, anyhow::Error> {
 
         println!("REST API: AKTUELLER CIRCUIT BREAKER STATUS IST: {}", self.get_circuit_breaker_state());
 
@@ -92,7 +94,7 @@ impl <'a> CircuitBreaker<'a>  {
 
         let url = format!("{}:{}{}", self.hostname, self.port, addr_with_params);
 
-        match authclient::make_auth_request(url).await {
+        match authclient::make_auth_request(url, cache, login_name, auth_token).await {
             Ok((http_code, result)) => {
                 self.increment_success_count();
                 println!("Circuit Breaker: Request war erfolgreich. Success Count ist jetzt bei {}", self.get_success_count());
