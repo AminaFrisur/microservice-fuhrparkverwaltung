@@ -1,16 +1,34 @@
 
 networks:
-  main:
+  service:
+    name: fuhrparkverwaltung-service-main
+  architecture:
+    name: main
 
 services:
+
+  rest-api-fuhrparkverwaltung1:
+    networks:
+      - service
+      - architecture
+    build: ./rest_api
+    container_name: rest-api-fuhrparkverwaltung1
+    ports:
+      - 8002:8000
+    environment:
+      - BENUTZERVERWALTUNG=rest-api-benutzerverwaltung1
+      - BENUTZERVERWALTUNGPORT=8000
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_HOST=database-mysql-fuhrpark1
+
   database-mysql-fuhrpark1:
     container_name: database-mysql-fuhrpark1
     command: --default-authentication-plugin=mysql_native_password
     build: ./datenbank
     environment:
-      MYSQL_ROOT_PASSWORD: "test"
+      - MYSQL_ROOT_PASSWORD= "test"
     networks:
-      - main
+      - service
     expose:
       - 3000
     ports:

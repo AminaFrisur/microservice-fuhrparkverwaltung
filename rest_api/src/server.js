@@ -82,7 +82,83 @@ app.get('/getVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBen
         });
 
     } catch(err){
-        console.log("TEST");
+        console.log(err);
+        res.status(401).send(err);
+    }
+});
+
+app.get('/getVehicles',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+    try {
+        connection.query(`SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE active=TRUE`, function (error, results) {
+            if (error) {
+                res.status(500).send(error);
+            } else {
+                res.status(200).send(results);
+            }
+        });
+
+    } catch(err){
+        console.log(err);
+        res.status(401).send(err);
+    }
+});
+
+app.post('/addVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
+    try {
+        let params = checkParams(req, res,["model", "leistung", "marke"]);
+        var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung};
+        connection.query('INSERT INTO fahrzeuge SET ?', data, function (error) {
+            if (error) {
+                res.status(500).send(error);
+            } else {
+                res.status(200).send("Fahrzeug wurde erfolgreich hinzugefügt");
+            }
+
+        });
+
+
+    } catch(err){
+        console.log(err);
+        res.status(401).send(err);
+    }
+});
+
+app.post('/updateVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
+    try {
+        let params = checkParams(req, res,["id", "model", "leistung", "marke", "latitude", "longitude"]);
+        var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung,
+                     "latitude": params.latitude, "longitude": params.longitude};
+        connection.query('UPDATE fahrzeuge SET ?', data, function (error) {
+            if (error) {
+                res.status(500).send(error);
+            } else {
+                res.status(200).send("Fahrzeug wurde erfolgreich aktualisiert");
+            }
+
+        });
+
+
+    } catch(err){
+        console.log(err);
+        res.status(401).send(err);
+    }
+});
+
+app.post('/inactiveVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+    try {
+        let params = checkParams(req, res,["id"]);
+        var data  = {"active": false};
+        connection.query('UPDATE fahrzeuge SET ? WHERE id = ?', [data, params.id], function (error) {
+            if (error) {
+                res.status(500).send(error);
+            } else {
+                res.status(200).send("Fahrzeug wurde erfolgreich auf inaktiv gesetzt");
+            }
+
+        });
+
+
+    } catch(err){
         console.log(err);
         res.status(401).send(err);
     }
