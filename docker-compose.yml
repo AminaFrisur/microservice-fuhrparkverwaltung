@@ -20,6 +20,8 @@ services:
       - BENUTZERVERWALTUNGPORT=8000
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_HOST=database-mysql-fuhrpark1
+    depends_on:
+      - database-mysql-fuhrpark1
 
   database-mysql-fuhrpark1:
     container_name: database-mysql-fuhrpark1

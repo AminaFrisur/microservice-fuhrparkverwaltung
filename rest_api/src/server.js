@@ -27,15 +27,13 @@ const middlerwareWrapperAuth = (cache, isAdmin, circuitBreaker) => {
 var cache = new Cache(10000, 5000);
 
 var mysql = require('mysql');
-var connection = mysql.createConnection({
-    host     : process.env.MYSQL_HOST,
-    port     : 3306,
-    user     : 'root',
-    password : process.env.MYSQL_ROOT_PASSWORD,
-    database : 'fuhrpark'
+var pool  = mysql.createPool({
+    connectionLimit : 10000,
+    host            : process.env.MYSQL_HOST,
+    user            : 'root',
+    password        : process.env.MYSQL_ROOT_PASSWORD,
+    database        : 'fuhrpark'
 });
-
-connection.connect();
 
 function checkParams(req, res, requiredParams) {
     console.log("checkParams", requiredParams);
@@ -73,7 +71,7 @@ const app = express();
 app.get('/getVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
     try {
         let params = checkParams(req, res,["id"]);
-        connection.query(`SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE id=${params.id} AND active=TRUE`, function (error, results) {
+        pool.query(`SELECT id, marke, model, leistung, kennzeichen, latitude, longitude FROM fahrzeuge WHERE id=${params.id} AND active=TRUE`, function (error, results) {
             if (error) {
                 res.status(500).send(error);
             } else {
@@ -89,7 +87,7 @@ app.get('/getVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBen
 
 app.get('/getVehicles',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
     try {
-        connection.query(`SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE active=TRUE`, function (error, results) {
+        pool.query(`SELECT id, marke, model, leistung, kennzeichen, latitude, longitude FROM fahrzeuge WHERE active=TRUE`, function (error, results) {
             if (error) {
                 res.status(500).send(error);
             } else {
@@ -105,9 +103,9 @@ app.get('/getVehicles',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutz
 
 app.post('/addVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
     try {
-        let params = checkParams(req, res,["model", "leistung", "marke"]);
-        var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung};
-        connection.query('INSERT INTO fahrzeuge SET ?', data, function (error) {
+        let params = checkParams(req, res,["model", "leistung", "marke", "kennzeichen"]);
+        var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung, "kennzeichen": params.kennzeichen};
+        pool.query('INSERT INTO fahrzeuge SET ?', data, function (error) {
             if (error) {
                 res.status(500).send(error);
             } else {
@@ -125,10 +123,10 @@ app.post('/addVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutz
 
 app.post('/updateVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
     try {
-        let params = checkParams(req, res,["id", "model", "leistung", "marke", "latitude", "longitude"]);
+        let params = checkParams(req, res,["id", "model", "leistung", "marke", "latitude", "longitude", "kennzeichen"]);
         var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung,
-                     "latitude": params.latitude, "longitude": params.longitude};
-        connection.query('UPDATE fahrzeuge SET ?', data, function (error) {
+                     "latitude": params.latitude, "longitude": params.longitude, "kennzeichen": params.kennzeichen};
+        pool.query('UPDATE fahrzeuge SET ?', data, function (error) {
             if (error) {
                 res.status(500).send(error);
             } else {
@@ -148,7 +146,7 @@ app.post('/inactiveVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBrea
     try {
         let params = checkParams(req, res,["id"]);
         var data  = {"active": false};
-        connection.query('UPDATE fahrzeuge SET ? WHERE id = ?', [data, params.id], function (error) {
+        pool.query('UPDATE fahrzeuge SET ? WHERE id = ?', [data, params.id], function (error) {
             if (error) {
                 res.status(500).send(error);
             } else {
