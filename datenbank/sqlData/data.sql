@@ -4,9 +4,9 @@ CREATE DATABASE IF NOT EXISTS fuhrpark;
 USE fuhrpark;
 DROP TABLE IF EXISTS `fahrzeuge`;
 CREATE TABLE `fahrzeuge` (
-    `model` VARCHAR(255) NOT NULL,
+    `model` VARCHAR(50) NOT NULL,
     `id` int NOT NULL AUTO_INCREMENT,
-    `marke` VARCHAR(255) NOT NULL,
+    `marke` VARCHAR(50) NOT NULL,
     `leistung` int DEFAULT 0,
     `latitude` int DEFAULT 0,
     `longitude`int DEFAULT 0,

@@ -17,7 +17,7 @@ var circuitBreakerBenutzerverwaltung = new CircuitBreaker(150, 30, 0,
     -3, 10, 3,
     process.env.BENUTZERVERWALTUNG, process.env.BENUTZERVERWALTUNGPORT);
 
-const middlerwareWrapperAuth = (cache, isAdmin, circuitBreaker) => {
+const middlerwareCheckAuth = (cache, isAdmin, circuitBreaker) => {
     return (req, res, next) => {
         Auth.checkAuth(req, res, isAdmin, cache, circuitBreaker, next);
     }
@@ -68,7 +68,7 @@ function checkParams(req, res, requiredParams) {
 const app = express();
 
 
-app.get('/getVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+app.get('/getVehicle/:id',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
     try {
         let params = checkParams(req, res,["id"]);
         pool.query(`SELECT id, marke, model, leistung, kennzeichen, latitude, longitude FROM fahrzeuge WHERE id=${params.id} AND active=TRUE`, function (error, results) {
@@ -85,7 +85,7 @@ app.get('/getVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBen
     }
 });
 
-app.get('/getVehicles',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+app.get('/getVehicles',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
     try {
         pool.query(`SELECT id, marke, model, leistung, kennzeichen, latitude, longitude FROM fahrzeuge WHERE active=TRUE`, function (error, results) {
             if (error) {
@@ -101,7 +101,7 @@ app.get('/getVehicles',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutz
     }
 });
 
-app.post('/addVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
+app.post('/addVehicle',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
     try {
         let params = checkParams(req, res,["model", "leistung", "marke", "kennzeichen"]);
         var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung, "kennzeichen": params.kennzeichen};
@@ -121,7 +121,7 @@ app.post('/addVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutz
     }
 });
 
-app.post('/updateVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
+app.post('/updateVehicle',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
     try {
         let params = checkParams(req, res,["id", "model", "leistung", "marke", "latitude", "longitude", "kennzeichen"]);
         var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung,
@@ -142,7 +142,7 @@ app.post('/updateVehicle',[middlerwareWrapperAuth(cache, true, circuitBreakerBen
     }
 });
 
-app.post('/inactiveVehicle/:id',[middlerwareWrapperAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+app.post('/inactiveVehicle/:id',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
     try {
         let params = checkParams(req, res,["id"]);
         var data  = {"active": false};
