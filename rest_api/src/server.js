@@ -9,7 +9,7 @@ var jsonBodyParser = bodyParser.json({ type: 'application/json' });
 // Constants
 // Kann so festgelegt werden, da innerhalb des Containers festgelegt wird
 // Nachaußen wird anders gemappt
-const PORT = 8000;
+const PORT = 8002;
 const HOST = '0.0.0.0';
 
 // Definition CircuitBreaker
