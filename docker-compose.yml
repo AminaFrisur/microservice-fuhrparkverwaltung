@@ -14,10 +14,10 @@ services:
     build: ./rest_api
     container_name: rest-api-fuhrparkverwaltung1
     ports:
-      - 8002:8002
+      - 8001:8000
     environment:
-      - BENUTZERVERWALTUNG=rest-api-benutzerverwaltung1
-      - BENUTZERVERWALTUNGPORT=8000
+      - BENUTZERVERWALTUNG=api-gateway-benutzerverwaltung
+      - BENUTZERVERWALTUNGPORT=80
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_HOST=database-mysql-fuhrpark1
 
@@ -28,10 +28,10 @@ services:
     build: ./rest_api
     container_name: rest-api-fuhrparkverwaltung2
     ports:
-      - 8003:8002
+      - 8002:8000
     environment:
-      - BENUTZERVERWALTUNG=rest-api-benutzerverwaltung1
-      - BENUTZERVERWALTUNGPORT=8000
+      - BENUTZERVERWALTUNG=api-gateway-benutzerverwaltung
+      - BENUTZERVERWALTUNGPORT=80
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_HOST=database-mysql-fuhrpark1
 
@@ -42,10 +42,10 @@ services:
     build: ./rest_api
     container_name: rest-api-fuhrparkverwaltung3
     ports:
-      - 8004:8002
+      - 8003:8000
     environment:
-      - BENUTZERVERWALTUNG=rest-api-benutzerverwaltung1
-      - BENUTZERVERWALTUNGPORT=8000
+      - BENUTZERVERWALTUNG=api-gateway-benutzerverwaltung
+      - BENUTZERVERWALTUNGPORT=80
       - MYSQL_ROOT_PASSWORD=test
       - MYSQL_HOST=database-mysql-fuhrpark1
     depends_on:
