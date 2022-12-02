@@ -3,6 +3,8 @@ module.exports = function() {
      module.checkAuth = async function(req, res, isAdmin, cache, circuitBreaker, next) {
         let authToken = req.headers.auth_token;
         let loginName = req.headers.login_name;
+        console.log(authToken);
+        console.log(loginName);
 
         // Schritt 1: Schaue ob der User im Cache ist
          //Hier aufgerufen um nur einmal getUserIndex aufzurufen
