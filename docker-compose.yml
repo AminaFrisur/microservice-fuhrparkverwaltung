@@ -3,14 +3,20 @@ networks:
   main:
 
 services:
+
+  rest-api-fuhrparkverwaltung1:
+    platform: wasi/wasm32
+    build: ./restApi
+    runtime: io.containerd.wasmedge.v1
+    ports:
+      - 8000:8000
+
   database-mysql-fuhrpark1:
     container_name: database-mysql-fuhrpark1
     command: --default-authentication-plugin=mysql_native_password
     build: ./datenbank
     environment:
       MYSQL_ROOT_PASSWORD: "test"
-    networks:
-      - main
     expose:
       - 3000
     ports:

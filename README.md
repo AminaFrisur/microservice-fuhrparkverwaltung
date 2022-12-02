@@ -89,5 +89,12 @@ Stand 15.11.2022:
 - -> Yes, otherwise it'd be a memory leak, which would be a pretty terrible design decision. The memory is freed when the variable is reassigned:
 - Also wird direkt der Speicher freigemacht (anscheinend)
 
+Stand 02.12.2022:
+- Docker + Wasm
+- Bilde ein Image:
+- docker buildx build --platform wasi/wasm32 . -t <image Name> 
+- Starte wasmEdge mit docker:
+- docker run -dp 8000:8000 --runtime=io.containerd.wasmedge.v1 --platform=wasi/wasm32  <test>
+
 
 
