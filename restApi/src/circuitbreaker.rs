@@ -88,9 +88,9 @@ impl <'a> CircuitBreaker<'a>  {
             self.increment_request_count();
         }
 
-        let url = format!("{}:{}{}", self.hostname, self.port, addr_with_params);
+        // let url = format!("{}:{}{}", self.hostname, self.port, addr_with_params);
 
-        match client::make_post_request(url).await {
+        match client::make_post_request(self.hostname, self.port, addr_with_params).await {
 
             Ok((res, response_json_string)) => {
                 self.increment_success_count();

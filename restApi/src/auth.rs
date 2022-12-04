@@ -10,7 +10,7 @@ pub struct JsonResultUser<'a>  {
     login_name: &'a str,
     auth_token: &'a str,
     auth_token_timestamp: &'a str,
-    is_admin: bool
+    is_admin: i32
 }
 
 pub async fn check_auth_user(mut cache: Cache, mut circuitbreaker: CircuitBreaker<'_>, addr_with_params: String, login_name: &str, auth_token: &str) -> Result<(), anyhow::Error> {

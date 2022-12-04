@@ -24,6 +24,8 @@ fn get_url() -> String {
         {
             panic!("database name is empty");
         }
+        println!("{ }", url);
+
         url
     } else {
         "mysql://root:test@127.0.0.1:3000/fuhrpark".into()
@@ -101,6 +103,7 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
         }
     }
 
+    let addr_with_params = format!("/checkAuthUser?login_name={}&auth_token={}&isAdmin=true", login_name, auth_token);
     // Definiere hier zusätlich welche Routen erlaubt sind
     // Wichtig um auch zu checken ob Parameter in der URL dabei sind
     let re = Regex::new(r"/getVehicle/\d+|/echo|/getVehicles|/updateVehicle|/addVehicle|/inactiveVehicle/\d+")?;
@@ -113,7 +116,6 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
         (&Method::GET, "/echo") => Ok(Response::new(req.into_body())),
 
         (&Method::GET, "/getVehicle/") => {
-            let addr_with_params = format!("/checkAuthUser?login_name={}&auth_token={}&isAdmin=true", login_name, auth_token);
 
             match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
@@ -146,7 +148,14 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
         }
 
         (&Method::GET, "/getVehicles") => {
-            println!("REST API getVehicle: START CALL");
+            println!("REST API getVehicles: START CALL");
+
+            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+                Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
+                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+            }
+
+            println!("{}", "TEEEEESSSSssTTTTT");
 
             let mut conn = match  pool.get_conn().await {
                 Ok(result) => result,
@@ -165,6 +174,11 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
         }
 
         (&Method::POST, "/addVehicle") => {
+
+            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+                Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
+                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+            }
 
             println!("REST API addVehicle: START CALL");
             let mut conn = match  pool.get_conn().await {
@@ -195,6 +209,12 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
         }
 
         (&Method::POST, "/updateVehicle") => {
+
+            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+                Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
+                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+            }
+
             let mut conn = pool.get_conn().await?;
             println!("REST API updateVehicle: START CALL");
             let byte_stream = hyper::body::to_bytes(req).await?;
@@ -220,6 +240,12 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
         }
 
         (&Method::POST, "/inactiveVehicle/") => {
+
+            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+                Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
+                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+            }
+
             let id: String = regex_route.chars().filter(|c| c.is_digit(10)).collect();
             let mut conn = pool.get_conn().await?;
             println!("REST API inactiveVehicle: START CALL");
@@ -279,9 +305,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pool = Pool::new(builder.pool_opts(pool_opts));
 
     // circuit Breaker:
-    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "0.0.0.0", 8000);
+    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "rest-api-benutzerverwaltung1", 8000);
     let cache_benutzerverwaltung = Cache::new(10000, 10000);
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8002));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
         let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();

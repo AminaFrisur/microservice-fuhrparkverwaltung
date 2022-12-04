@@ -124,18 +124,8 @@ impl Cache   {
         let user = User::new(login_name, auth_token, DateTime::parse_from_rfc3339(auth_token_timestamp)?.with_timezone(&Utc), Utc::now());
 
         if user_found  {
-            // update Nutzer
             println!("Cache: mache ein Update zum User");
             cached_user.remove(index);
-            // user.auth_token = auth_token;
-            // user.auth_token_timestamp = DateTime::parse_from_rfc3339(auth_token_timestamp)?.with_timezone(&Utc);
-            // user.cache_timestamp = Utc::now();
-            // let vec_part_one = cached_user[..index].to_vec();
-            // let vec_part_two = cached_user[(index + 1)..].to_vec();
-            // vec_part_one.append(&mut vec_part_two);
-
-            // *cached_user = vec_part_one;
-
         }
         // Füge User neu im Cache hinzu, da nicht im cache vorhanden
         println!("Cache: Füge Eintrag neu in Cache hinzu");
