@@ -14,7 +14,7 @@ mod auth;
 use crate::circuitbreaker::CircuitBreaker;
 use crate::cache::Cache;
 
-fn get_url() -> String {
+fn get_url_db() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
         let opts = Opts::from_url(&url).expect("DATABASE_URL invalid");
         if opts
@@ -154,8 +154,6 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
                 Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
             }
-
-            println!("{}", "TEEEEESSSSssTTTTT");
 
             let mut conn = match  pool.get_conn().await {
                 Ok(result) => result,
@@ -297,15 +295,15 @@ fn response_build_error(body: &str, status: u16) -> Response<Body> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let opts = Opts::from_url(&*get_url()).unwrap();
+    let opts = Opts::from_url(&*get_url_db()).unwrap();
     let builder = OptsBuilder::from_opts(opts);
     // The connection pool will have a min of 5 and max of 10 connections.
     let constraints = PoolConstraints::new(5, 10).unwrap();
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
 
-    // circuit Breaker:
-    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "rest-api-benutzerverwaltung1", 8000);
+    // TODO: benutzerverwaltungUrl
+    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "api-gateway-benutzerverwaltung", 80);
     let cache_benutzerverwaltung = Cache::new(10000, 10000);
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let make_svc = make_service_fn(|_| {

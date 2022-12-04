@@ -1,17 +1,75 @@
 
 networks:
-  main:
+  service:
+    name: fuhrparkverwaltung-service-main
+  architecture:
+    name: main
 
 services:
+  rest-api-fuhrparkverwaltung1:
+    container_name: rest-api-fuhrparkverwaltung1
+    platform: wasi/wasm32
+    build: ./restApi
+    runtime: io.containerd.wasmedge.v1
+    ports:
+      - 8001:8000
+    environment:
+      - DATABASE_URL=mysql://root:test@database-mysql-fuhrpark1:3306/fuhrpark
+    expose:
+      - 8001
+    networks:
+      - service
+      - architecture
+
+  rest-api-fuhrparkverwaltung2:
+    container_name: rest-api-fuhrparkverwaltung2
+    platform: wasi/wasm32
+    build: ./restApi
+    runtime: io.containerd.wasmedge.v1
+    ports:
+      - 8002:8000
+    environment:
+      - DATABASE_URL=mysql://root:test@database-mysql-fuhrpark1:3306/fuhrpark
+    networks:
+      - service
+      - architecture
+
+  rest-api-fuhrparkverwaltung3:
+    container_name: rest-api-fuhrparkverwaltung3
+    platform: wasi/wasm32
+    build: ./restApi
+    runtime: io.containerd.wasmedge.v1
+    ports:
+      - 8003:8000
+    environment:
+      - DATABASE_URL=mysql://root:test@database-mysql-fuhrpark1:3306/fuhrpark
+    networks:
+      - service
+      - architecture
+
+  api-gateway-fuhrpark:
+    container_name: api-gateway-fuhrpark
+    build: ./api_gateway
+    ports:
+      - 8080:80
+    depends_on:
+      - database-mysql-fuhrpark1
+      - rest-api-fuhrparkverwaltung1
+      - rest-api-fuhrparkverwaltung2
+      - rest-api-fuhrparkverwaltung3
+    networks:
+      - service
+      - architecture
+
   database-mysql-fuhrpark1:
     container_name: database-mysql-fuhrpark1
     command: --default-authentication-plugin=mysql_native_password
     build: ./datenbank
     environment:
       MYSQL_ROOT_PASSWORD: "test"
-    networks:
-      - main
     expose:
       - 3000
     ports:
       - 3000:3306
+    networks:
+      - service
