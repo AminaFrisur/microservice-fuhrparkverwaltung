@@ -1,30 +1,18 @@
 'use strict';
 const express = require('express');
 const bodyParser = require('body-parser');
-const CircuitBreaker = require('./circuitBreaker.js');
 const Auth = require("./auth.js")();
-const Cache = require("./cache.js")
 var jsonBodyParser = bodyParser.json({ type: 'application/json' });
+const JWT_SECRET = "goK!pusp6ThEdURUtRenOwUhAsWUCLheasfr43qrf43rttq3";
 
-// Constants
-// Kann so festgelegt werden, da innerhalb des Containers festgelegt wird
-// Nachaußen wird anders gemappt
 const PORT = 8000;
 const HOST = '0.0.0.0';
 
-// Definition CircuitBreaker
-var circuitBreakerBenutzerverwaltung = new CircuitBreaker(150, 30, 0,
-    -3, 10, 3,
-    process.env.BENUTZERVERWALTUNG, process.env.BENUTZERVERWALTUNGPORT);
-
-const middlerwareCheckAuth = (cache, isAdmin, circuitBreaker) => {
+const middlerwareCheckAuth = (isAdmin) => {
     return (req, res, next) => {
-        Auth.checkAuth(req, res, isAdmin, cache, circuitBreaker, next);
+        Auth.checkAuth(req, res, isAdmin, JWT_SECRET,  next);
     }
 }
-
-// Definition Cache um Nutzer Auth Token zwischen zu speichern
-var cache = new Cache(10000, 5000);
 
 var mysql = require('mysql');
 var pool  = mysql.createPool({
@@ -68,7 +56,7 @@ function checkParams(req, res, requiredParams) {
 const app = express();
 
 
-app.get('/getVehicle/:id',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+app.get('/getVehicle/:id',[middlerwareCheckAuth(true)], async function (req, res) {
     try {
         let params = checkParams(req, res,["id"]);
         pool.query(`SELECT id, marke, model, leistung, kennzeichen, latitude, longitude FROM fahrzeuge WHERE id=${params.id} AND active=TRUE`, function (error, results) {
@@ -85,7 +73,7 @@ app.get('/getVehicle/:id',[middlerwareCheckAuth(cache, true, circuitBreakerBenut
     }
 });
 
-app.get('/getVehicles',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+app.get('/getVehicles',[middlerwareCheckAuth(true)], async function (req, res) {
     try {
         pool.query(`SELECT id, marke, model, leistung, kennzeichen, latitude, longitude FROM fahrzeuge WHERE active=TRUE`, function (error, results) {
             if (error) {
@@ -101,7 +89,7 @@ app.get('/getVehicles',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzer
     }
 });
 
-app.post('/addVehicle',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
+app.post('/addVehicle',[middlerwareCheckAuth(true), jsonBodyParser], async function (req, res) {
     try {
         let params = checkParams(req, res,["model", "leistung", "marke", "kennzeichen"]);
         var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung, "kennzeichen": params.kennzeichen};
@@ -121,7 +109,7 @@ app.post('/addVehicle',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzer
     }
 });
 
-app.post('/updateVehicle',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung), jsonBodyParser], async function (req, res) {
+app.post('/updateVehicle',[middlerwareCheckAuth(true), jsonBodyParser], async function (req, res) {
     try {
         let params = checkParams(req, res,["id", "model", "leistung", "marke", "latitude", "longitude", "kennzeichen"]);
         var data  = {"marke": params.marke, "model": params.model, "leistung": params.leistung,
@@ -142,7 +130,7 @@ app.post('/updateVehicle',[middlerwareCheckAuth(cache, true, circuitBreakerBenut
     }
 });
 
-app.post('/inactiveVehicle/:id',[middlerwareCheckAuth(cache, true, circuitBreakerBenutzerverwaltung)], async function (req, res) {
+app.post('/inactiveVehicle/:id',[middlerwareCheckAuth(true)], async function (req, res) {
     try {
         let params = checkParams(req, res,["id"]);
         var data  = {"active": false};
