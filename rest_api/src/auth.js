@@ -5,11 +5,11 @@ module.exports = function() {
         let authToken = req.headers.auth_token;
         let loginName = req.headers.login_name;
 
-
          try {
              var decoded = jwt.verify(authToken, jwt_secret);
              console.log(decoded);
-             if(decoded && decoded.iat && decoded.login_name == loginName && decoded.is_admin == isAdmin) {
+             if(decoded && decoded.iat && decoded.login_name == loginName &&
+                 ((isAdmin && decoded.isAdmin == true) || isAdmin == false)) {
 
                  // check timestamp
                  let timeDiff = new Date() - decoded.iat;
@@ -30,9 +30,6 @@ module.exports = function() {
              console.log("AUTH: " + e)
              res.status(401).send("token and/or login name are missing or are not valid");
          }
-
-
-
 
     }
     return module;
