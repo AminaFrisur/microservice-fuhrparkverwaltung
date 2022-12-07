@@ -9,7 +9,7 @@ module.exports = function() {
              var decoded = jwt.verify(authToken, jwt_secret);
              console.log(decoded);
              if(decoded && decoded.iat && decoded.login_name == loginName &&
-                 ((isAdmin && decoded.isAdmin == true) || isAdmin == false)) {
+                 ((isAdmin && decoded.is_admin == true) || isAdmin == false)) {
 
                  // check timestamp
                  let timeDiff = new Date() - decoded.iat;
