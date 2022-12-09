@@ -1,5 +1,5 @@
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Method, Request, Response, StatusCode, Server};
+use hyper::{Body, Method, Request, Response, Server};
 pub use mysql_async::prelude::*;
 pub use mysql_async::*;
 use std::convert::Infallible;
@@ -8,11 +8,7 @@ use std::result::Result;
 use serde::{Deserialize, Serialize};
 extern crate regex;
 use regex::Regex;
-mod cache;
-mod circuitbreaker;
 mod auth;
-use crate::circuitbreaker::CircuitBreaker;
-use crate::cache::Cache;
 
 fn get_url_db() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
@@ -28,7 +24,7 @@ fn get_url_db() -> String {
 
         url
     } else {
-        "mysql://root:test@127.0.0.1:3000/fuhrpark".into()
+        panic!("Datebase URL is wrong!");
     }
 }
 
@@ -71,21 +67,22 @@ pub fn regex_route(re: Regex, route: &str) -> String {
     }
 }
 
-async fn handle_request_wrapper(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
-    match handle_request(cache, circuit_breaker, req, pool).await {
+async fn handle_request_wrapper( req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+    match handle_request(req, pool).await {
         Ok(result) => Ok(result),
         Err(err) => {
             let error_message = format!("{:?}", err);
-            Ok(response_build_error(&error_message, 500))
+            Ok(response_build(&error_message, 500))
 
         }
     }
 }
 
-async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
+async fn handle_request(req: Request<Body>, pool: Pool) -> Result<Response<Body>, anyhow::Error> {
 
     let mut login_name ="";
     let mut auth_token ="";
+    let JWT_SECRET : String = "goK!pusp6ThEdURUtRenOwUhAsWUCLheasfr43qrf43rttq3".to_string();
 
     // get Header Information for login_name and auth_token
     for (key, value) in req.headers().iter() {
@@ -117,9 +114,9 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
 
         (&Method::GET, "/getVehicle/") => {
 
-            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+            match auth::check_auth_user(login_name, auth_token, false, JWT_SECRET).await {
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
-                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+                Err(err) => return Ok(response_build(&format!("Authentifizierung fehlgeschlagen: {}", err), 401)),
             }
 
             // get Params from url
@@ -129,7 +126,7 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
 
             let mut conn = match  pool.get_conn().await {
               Ok(result) => result,
-              Err(_) => return Ok(response_build_error("Verbindung zur Datenbank ist fehlgeschlagen", 500))
+              Err(_) => return Ok(response_build("Verbindung zur Datenbank ist fehlgeschlagen", 500))
             };
 
             let id: i32 = id.parse()?;
@@ -138,50 +135,50 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
 
             let fahrzeug = match statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| { Fahrzeug::new(id, marke, model, leistung, latitude, longitude) }, ).await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+                Err(_) => return Ok(response_build("SQL Statement ist fehlgeschlagen!", 500))
             };
 
             println!("REST API: Ergebnis ist: {} ", serde_json::to_string(&fahrzeug)?.as_str());
 
             drop(conn);
-            Ok(response_build(serde_json::to_string(&fahrzeug)?.as_str()))
+            Ok(response_build(serde_json::to_string(&fahrzeug)?.as_str(), 200))
         }
 
         (&Method::GET, "/getVehicles") => {
             println!("REST API getVehicles: START CALL");
 
-            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+            match auth::check_auth_user(login_name, auth_token, false, JWT_SECRET).await {
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
-                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+                Err(err) => return Ok(response_build(&format!("Authentifizierung fehlgeschlagen: {}", err), 401)),
             }
 
             let mut conn = match  pool.get_conn().await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("Verbindung zur Datenbank ist fehlgeschlagen", 500))
+                Err(_) => return Ok(response_build("Verbindung zur Datenbank ist fehlgeschlagen", 500))
             };
 
             let statement = "SELECT id, marke, model, leistung, latitude, longitude FROM fahrzeuge WHERE active=TRUE";
             let fahrzeug = match statement.with(()).map(&mut conn, |(id, marke, model, leistung, latitude, longitude)| { Fahrzeug::new(id, marke, model, leistung, latitude, longitude) }, ).await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+                Err(_) => return Ok(response_build("SQL Statement ist fehlgeschlagen!", 500))
             };
             println!("REST API: Ergebnis ist: {} ", serde_json::to_string(&fahrzeug)?.as_str());
 
             drop(conn);
-            Ok(response_build(serde_json::to_string(&fahrzeug)?.as_str()))
+            Ok(response_build(serde_json::to_string(&fahrzeug)?.as_str(), 200))
         }
 
         (&Method::POST, "/addVehicle") => {
 
-            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+            match auth::check_auth_user(login_name, auth_token, false, JWT_SECRET).await {
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
-                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+                Err(err) => return Ok(response_build(&format!("Authentifizierung fehlgeschlagen: {}", err), 401)),
             }
 
             println!("REST API addVehicle: START CALL");
             let mut conn = match  pool.get_conn().await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("Verbindung zur Datenbank ist fehlgeschlagen", 500))
+                Err(_) => return Ok(response_build("Verbindung zur Datenbank ist fehlgeschlagen", 500))
             };
 
             let byte_stream = hyper::body::to_bytes(req).await?;
@@ -199,18 +196,18 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
                 .ignore(&mut conn)
                 .await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!",500))
+                Err(_) => return Ok(response_build("SQL Statement ist fehlgeschlagen!",500))
             }
 
             drop(conn);
-            Ok(response_build("Fahrzeug wurde erfolgreich hinzugefügt"))
+            Ok(response_build("Fahrzeug wurde erfolgreich hinzugefügt", 200))
         }
 
         (&Method::POST, "/updateVehicle") => {
 
-            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+            match auth::check_auth_user(login_name, auth_token, false, JWT_SECRET).await {
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
-                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+                Err(err) => return Ok(response_build(&format!("Authentifizierung fehlgeschlagen: {}", err), 401)),
             }
 
             let mut conn = pool.get_conn().await?;
@@ -230,18 +227,18 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
                 .ignore(&mut conn)
                 .await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+                Err(_) => return Ok(response_build("SQL Statement ist fehlgeschlagen!", 500))
             }
 
             drop(conn);
-            Ok(response_build("Fahrzeug wurde erfolgreich aktualisiert"))
+            Ok(response_build("Fahrzeug wurde erfolgreich aktualisiert", 200))
         }
 
         (&Method::POST, "/inactiveVehicle/") => {
 
-            match auth::check_auth_user(cache, circuit_breaker, addr_with_params, login_name, auth_token).await {
+            match auth::check_auth_user(login_name, auth_token, false, JWT_SECRET).await {
                 Ok(()) => println!("Rest API: Nutzer ist authentifiziert"),
-                Err(err) => return Ok(response_build_error(&format!("{}", err), 401)),
+                Err(err) => return Ok(response_build(&format!("Authentifizierung fehlgeschlagen: {}", err), 401)),
             }
 
             let id: String = regex_route.chars().filter(|c| c.is_digit(10)).collect();
@@ -255,40 +252,24 @@ async fn handle_request(cache: Cache, circuit_breaker: CircuitBreaker<'_>, req: 
                 .ignore(&mut conn)
                 .await {
                 Ok(result) => result,
-                Err(_) => return Ok(response_build_error("SQL Statement ist fehlgeschlagen!", 500))
+                Err(_) => return Ok(response_build("SQL Statement ist fehlgeschlagen!", 500))
             }
 
             drop(conn);
-            Ok(response_build("Fahrzeug wurde auf inaktiv gesetzt"))
+            Ok(response_build("Fahrzeug wurde auf inaktiv gesetzt", 200))
         }
 
 
         _ => {
             println!("REST API: ROUTE NOT FOUND");
-            let mut not_found = Response::default();
-            *not_found.status_mut() = StatusCode::NOT_FOUND;
-            Ok(not_found)
+            Ok(response_build("Route not found", 404))
         }
     }
 }
 
-// TODO: Prüfe ob wirklich gebraucht wird
-// CORS headers
-fn response_build(body: &str) -> Response<Body> {
-    Response::builder()
-        .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        .header("Access-Control-Allow-Headers", "api,Keep-Alive,User-Agent,Content-Type")
-        .body(Body::from(body.to_owned()))
-        .unwrap()
-}
-
-fn response_build_error(body: &str, status: u16) -> Response<Body> {
+fn response_build(body: &str, status: u16) -> Response<Body> {
     Response::builder()
         .status(status)
-        .header("Access-Control-Allow-Origin", "*")
-        .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        .header("Access-Control-Allow-Headers", "api,Keep-Alive,User-Agent,Content-Type")
         .body(Body::from(body.to_owned()))
         .unwrap()
 }
@@ -301,22 +282,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let constraints = PoolConstraints::new(5, 10).unwrap();
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
-
-    // TODO: benutzerverwaltungUrl
-    let circuit_breaker_benutzerverwaltung = CircuitBreaker::new(150, 30, 0, -3, 10, 3, "api-gateway-benutzerverwaltung", 80);
-    let cache_benutzerverwaltung = Cache::new(10000, 10000);
     let addr = SocketAddr::from(([0, 0, 0, 0], 8000));
     let make_svc = make_service_fn(|_| {
         let pool = pool.clone();
-        let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
-        let cache_benutzerverwaltung = cache_benutzerverwaltung.clone();
-        // move converts any variables captured by reference or mutable reference to variables captured by value.
         async move {
             Ok::<_, Infallible>(service_fn(move |req| {
                 let pool = pool.clone();
-                let circuit_breaker_benutzerverwaltung = circuit_breaker_benutzerverwaltung.clone();
-                let cache_benutzerverwaltung = cache_benutzerverwaltung.clone();
-                handle_request_wrapper(cache_benutzerverwaltung, circuit_breaker_benutzerverwaltung, req, pool)
+                handle_request_wrapper( req, pool)
             }))
         }
     });
