@@ -9,7 +9,7 @@ services:
   rest-api-fuhrparkverwaltung1:
     container_name: rest-api-fuhrparkverwaltung1
     platform: wasi/wasm32
-    build: ./restApi
+    build: ./rest_api
     runtime: io.containerd.wasmedge.v1
     ports:
       - 8001:8000
@@ -24,7 +24,7 @@ services:
   rest-api-fuhrparkverwaltung2:
     container_name: rest-api-fuhrparkverwaltung2
     platform: wasi/wasm32
-    build: ./restApi
+    build: ./rest_api
     runtime: io.containerd.wasmedge.v1
     ports:
       - 8002:8000
@@ -37,7 +37,7 @@ services:
   rest-api-fuhrparkverwaltung3:
     container_name: rest-api-fuhrparkverwaltung3
     platform: wasi/wasm32
-    build: ./restApi
+    build: ./rest_api
     runtime: io.containerd.wasmedge.v1
     ports:
       - 8003:8000

@@ -12,6 +12,7 @@ mod auth;
 
 fn get_url_db() -> String {
     if let Ok(url) = std::env::var("DATABASE_URL") {
+        println!("Check DB Env");
         let opts = Opts::from_url(&url).expect("DATABASE_URL invalid");
         if opts
             .db_name()
@@ -279,6 +280,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let opts = Opts::from_url(&*get_url_db()).unwrap();
     let builder = OptsBuilder::from_opts(opts);
     // The connection pool will have a min of 5 and max of 10 connections.
+
+    println!("EGHNJKHSNDGJKDBNSGHJGDFSBNHJKSDBNGHJKSGDNBHJKSDGNBJHSGDBJHSDBNHJGDSBJHSDJHBGDSBNSDGJHSDGHJGJBDSHJHDSG");
+
     let constraints = PoolConstraints::new(5, 10).unwrap();
     let pool_opts = PoolOpts::default().with_constraints(constraints);
     let pool = Pool::new(builder.pool_opts(pool_opts));
